@@ -1,0 +1,5 @@
+tqdm
+fastapi
+uvicorn
+mcp<2
+
