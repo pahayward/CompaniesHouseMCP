@@ -288,6 +288,45 @@ async function refresh() {
 }
 
 // ------------------------------------------------------------------- detail panel
+// Google searches for a company. The name goes in quotes with the legal suffix dropped, since
+// sites say "Acme Ltd" or just "Acme".
+const DIVE_DEFAULT = "careers";
+const DIVE_KEY = "chmap.dive";
+const searchUrl = (q) => "https://www.google.com/search?q=" + encodeURIComponent(q);
+const shortName = (name) => String(name || "").replace(/\s+(LIMITED|LTD\.?)\s*$/i, "").trim() || String(name || "");
+
+// Website check: name plus postcode, which Google treats as a soft hint.
+const googleUrl = (name, postcode) => searchUrl(`"${shortName(name)}"${postcode ? " " + postcode : ""}`);
+
+// Deep dive: name plus a term the user can change (default "careers"). No postcode: the registered
+// office is often an accountant's, and the term is what narrows the results.
+const diveTerm = () => ($("#dive-term")?.value || "").trim() || DIVE_DEFAULT;
+const diveUrl = (name) => searchUrl(`"${shortName(name)}" ${diveTerm()}`);
+
+function refreshDiveLinks() {
+  const term = diveTerm();
+  document.querySelectorAll("#detail a[data-dive]").forEach((a) => {
+    a.href = diveUrl(a.dataset.name);
+    a.setAttribute("aria-label", `Search Google for ${a.dataset.name} ${term}`);
+    a.querySelector(".dive-label").textContent = term;
+  });
+}
+
+function initDive() {
+  const input = $("#dive-term");
+  try { input.value = localStorage.getItem(DIVE_KEY) || DIVE_DEFAULT; } catch { /* storage blocked */ }
+  input.addEventListener("focus", () => input.select());
+  input.addEventListener("input", () => {
+    try { localStorage.setItem(DIVE_KEY, input.value.trim()); } catch { /* storage blocked */ }
+    refreshDiveLinks();
+  });
+}
+
+// Markup for a deep-dive link; `body` is the link text (it must contain a .dive-label span).
+const diveLink = (name, cls, body) => `<a class="${cls}" data-dive data-name="${esc(name)}" href="${esc(diveUrl(name))}"
+  target="_blank" rel="noopener noreferrer" title="Search Google for this company plus your deep-dive term (opens a new tab)"
+  aria-label="Search Google for ${esc(name)} ${esc(diveTerm())}">${body}</a>`;
+
 function showPanel(view) {
   $("#detail").hidden = false;
   $("#place-view").hidden = view !== "place";
@@ -329,11 +368,18 @@ async function loadPlace(code, offset) {
   }
   const colours = legend.size.map((x) => x.colour);
   $("#place-list").insertAdjacentHTML("beforeend", r.companies.map((c) => `
-    <button type="button" class="co" data-number="${esc(c.number)}">
-      <div class="name">${esc(c.name)}</div>
-      <div class="sub"><span class="chip" style="--c:${colours[c.size_id]}">${esc(c.size)}</span>
-        ${esc(c.status)} · ${esc(c.number)}${c.industry && c.industry !== "None Supplied" ? "<br>" + esc(c.industry) : ""}</div>
-    </button>`).join(""));
+    <div class="co-row">
+      <button type="button" class="co" data-number="${esc(c.number)}">
+        <div class="name">${esc(c.name)}</div>
+        <div class="sub"><span class="chip" style="--c:${colours[c.size_id]}">${esc(c.size)}</span>
+          ${esc(c.status)} · ${esc(c.number)}${c.industry && c.industry !== "None Supplied" ? "<br>" + esc(c.industry) : ""}</div>
+      </button>
+      <div class="web-col">
+        <a class="web" href="${esc(googleUrl(c.name, r.postcode))}" target="_blank" rel="noopener noreferrer"
+           title="Search Google for this company (opens a new tab)" aria-label="Search Google for ${esc(c.name)}">Google&nbsp;&nearr;</a>
+        ${diveLink(c.name, "web dive", `<span class="dive-label">${esc(diveTerm())}</span>&nbsp;&nearr;`)}
+      </div>
+    </div>`).join(""));
   $("#place-more").innerHTML = place.offset < r.total
     ? `<button type="button" class="icon-btn more">Show more (${num(r.total - place.offset)} left)</button>` : "";
 }
@@ -372,7 +418,9 @@ async function openCompany(number, { backTo = null, fly = false } = {}) {
       ${row("Previous names", c.previous_names?.length ? `<ul>${c.previous_names.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : "")}
     </dl>
     <div class="actions">
-      <a href="${esc(c.ch_url)}" target="_blank" rel="noopener noreferrer">Companies House &nearr;</a>
+      <a href="${esc(googleUrl(c.name, c.postcode))}" target="_blank" rel="noopener noreferrer">Search Google &nearr;</a>
+      ${diveLink(c.name, "secondary", `Search &ldquo;<span class="dive-label">${esc(diveTerm())}</span>&rdquo; &nearr;`)}
+      <a href="${esc(c.ch_url)}" target="_blank" rel="noopener noreferrer" class="secondary">Companies House &nearr;</a>
       ${loc ? `<button type="button" class="secondary" data-fly="${loc[0]},${loc[1]}">Zoom to location</button>` : ""}
     </div>`;
 }
@@ -485,6 +533,7 @@ async function init() {
   $("#f-crowded").addEventListener("change", (e) => { state.hideCrowded = e.target.checked; filtersChanged(); });
 
   $("#detail-close").addEventListener("click", closePanel);
+  initDive();
   $("#place-view").addEventListener("click", (e) => {
     const co = e.target.closest(".co");
     if (co) return openCompany(co.dataset.number, { backTo: place?.code });
