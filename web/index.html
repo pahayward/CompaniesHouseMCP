@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Company map</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <button id="layers-toggle" class="icon-btn" aria-label="Show layers panel" aria-expanded="false">Layers</button>
+    <h1>Company map</h1>
+    <div class="search">
+      <input id="search" type="search" placeholder="Find a company by name or number" autocomplete="off"
+             aria-label="Search companies" aria-controls="search-results">
+      <ul id="search-results" role="listbox" hidden></ul>
+    </div>
+  </header>
+
+  <main>
+    <aside id="filters" aria-label="Layers and filters">
+      <div class="group">
+        <h2>Colour pins by</h2>
+        <div class="seg" role="radiogroup" aria-label="Colour pins by">
+          <label><input type="radio" name="by" value="size" checked><span>Size</span></label>
+          <label><input type="radio" name="by" value="type"><span>Type</span></label>
+          <label><input type="radio" name="by" value="sic"><span>Industry</span></label>
+        </div>
+      </div>
+      <div id="facet-groups"></div>
+      <div class="group">
+        <h2>Status</h2>
+        <label class="opt"><input type="checkbox" id="f-active"><span class="lbl">Active companies only</span></label>
+        <label class="opt" title="Hides postcodes that hold more than 200 registered companies, which are usually accountants or formation agents">
+          <input type="checkbox" id="f-crowded"><span class="lbl">Hide mass-registration addresses</span></label>
+      </div>
+      <p class="note">Pins show <b>registered office</b> addresses, which are often an accountant or formation agent
+        rather than where a company trades. Size is the type of accounts a company files, not its headcount.</p>
+    </aside>
+
+    <div id="map" role="application" aria-label="Map of UK companies"></div>
+    <div id="status" role="status" aria-live="polite"></div>
+
+    <aside id="detail" hidden aria-label="Details">
+      <button id="detail-close" class="icon-btn close" aria-label="Close details">&times;</button>
+      <div id="place-view" hidden></div>
+      <div id="company-view" hidden></div>
+    </aside>
+
+    <div id="fatal" hidden></div>
+  </main>
+
+  <footer id="foot"></footer>
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

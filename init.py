@@ -1,6 +1,8 @@
 """Initialise/refresh the MCP server from a Companies House bulk zip.
 
-Usage: python init.py BasicCompanyDataAsOneFile-YYYY-MM-DD.zip [--register]
+Usage: python init.py BasicCompanyDataAsOneFile-YYYY-MM-DD.zip [--register] [--onspd ONSPD.zip]
+
+With --onspd (the ONS Postcode Directory) it also builds map.db for the map UI (map_app.py).
 """
 import argparse
 import os
@@ -13,6 +15,7 @@ import zipfile
 from tqdm import tqdm
 
 import build_db
+import build_geo
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DB = os.environ.get("COMPANIES_DB", os.path.join(HERE, "companies.db"))
@@ -56,10 +59,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("zip", help="Companies House BasicCompanyData zip")
     ap.add_argument("--register", action="store_true", help="also add the MCP server to Claude Code")
+    ap.add_argument("--onspd", help="ONS Postcode Directory (zip, folder or CSV): also build map.db for the map UI")
     a = ap.parse_args()
 
     if not zipfile.is_zipfile(a.zip):
         sys.exit(f"Not a valid zip file: {a.zip}")
+    if a.onspd and not os.path.exists(a.onspd):
+        sys.exit(f"ONSPD not found: {a.onspd}")
 
     # Work next to the target so the final swap is an atomic same-volume rename.
     with tempfile.TemporaryDirectory(dir=HERE, prefix="init_") as tmp:
@@ -70,6 +76,8 @@ def main():
         swap_in(new_db)
 
     print(f"\nReady: {DB}")
+    if a.onspd:
+        build_geo.build(a.onspd, DB)
     if a.register:
         register()
     else:

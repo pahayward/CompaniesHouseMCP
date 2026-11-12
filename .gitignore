@@ -4,6 +4,9 @@
 *.csv
 *.zip
 init_*/
+map.db.new
+map.db.stage
+ONSPD*/
 
 # Python
 __pycache__/
